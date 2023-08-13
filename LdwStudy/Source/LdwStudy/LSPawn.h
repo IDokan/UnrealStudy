@@ -4,6 +4,10 @@
 
 #include "LdwStudy.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/FloatingPawnMovement.h"
+#include "EnhancedInput/Public/EnhancedInputComponent.h"
+#include "InputMappingContext.h"
+#include "EnhancedInputSubsystems.h"
 #include "LSPawn.generated.h"
 
 UCLASS()
@@ -28,4 +32,34 @@ public:
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+private:
+	void UpDown(const FInputActionValue& NewAxisValue);
+	void LeftRight(const FInputActionValue& NewAxisValue);
+
+public:
+
+	UPROPERTY(VisibleAnywhere, Category=Collision)
+	UCapsuleComponent* Capsule;
+
+	UPROPERTY(VisibleAnywhere, Category=Visual)
+	USkeletalMeshComponent* Mesh;
+
+	UPROPERTY(VisibleAnywhere, Category=Movement)
+	UFloatingPawnMovement* Movement;
+
+	UPROPERTY(VisibleAnywhere, Category=Camera)
+	USpringArmComponent* SpringArm;
+
+	UPROPERTY(VisibleAnywhere, Category=Camera)
+	UCameraComponent* Camera;
+
+	UPROPERTY(EditAnywhere, Category = Input)
+	UInputMappingContext* InputMapping;
+
+	UPROPERTY(EditAnywhere, Category = Input)
+	UInputAction* inputUpDown;
+	
+	UPROPERTY(EditAnywhere, Category = Input)
+	UInputAction* inputLeftRight;
 };

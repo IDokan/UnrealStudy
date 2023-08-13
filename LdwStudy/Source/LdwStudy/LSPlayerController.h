@@ -17,4 +17,7 @@ class LDWSTUDY_API ALSPlayerController : public APlayerController
 public:
 	virtual void PostInitializeComponents() override;
 	virtual void OnPossess(APawn* aPawn) override;
+
+protected:
+	virtual void BeginPlay() override;
 };

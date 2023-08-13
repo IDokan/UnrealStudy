@@ -14,3 +14,11 @@ void ALSPlayerController::OnPossess(APawn* aPawn)
 	LSLOG_S(Warning);
 	Super::OnPossess(aPawn);
 }
+
+void ALSPlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+
+	FInputModeGameOnly InputMode;
+	SetInputMode(InputMode);
+}
