@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LSGameMode.h"
-#include "LSPawn.h"
+#include "LSCharacter.h"
 #include "LSPlayerController.h"
 
 ALSGameMode::ALSGameMode()
 {
-	DefaultPawnClass = ALSPawn::StaticClass();
+	DefaultPawnClass = ALSCharacter::StaticClass();
 	PlayerControllerClass = ALSPlayerController::StaticClass();
 
 	// @@ Not going to use in further examples.
