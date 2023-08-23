@@ -75,6 +75,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Input)
 	UInputAction* inputLeftRightReleased;
 
+	UPROPERTY(EditAnywhere, Category = Input)
+	UInputAction* inputJump;
+
 private:
 	void UpDown(const FInputActionValue& NewAxisValue);
 	void LeftRight(const FInputActionValue& NewAxisValue);

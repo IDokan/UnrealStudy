@@ -82,10 +82,17 @@ ALSCharacter::ALSCharacter()
 		inputLeftRightReleased = IA_LeftRight_Released.Object;
 	}
 
+	static ConstructorHelpers::FObjectFinder<UInputAction> IA_Jump(TEXT("/Script/EnhancedInput.InputAction'/Game/Inputs/IA_Jump.IA_Jump'"));
+	if (IA_Jump.Succeeded())
+	{
+		inputJump = IA_Jump.Object;
+	}
+
 	SetControlMode(EControlMode::DIABLO);
 
 	ArmLengthSpeed = 3.f;
 	ArmRotationSpeed = 10.f;
+	GetCharacterMovement()->JumpZVelocity = 800.f;
 }
 
 // Called when the game starts or when spawned
@@ -172,6 +179,7 @@ void ALSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	PEI->BindAction(inputViewChange, ETriggerEvent::Triggered, this, &ALSCharacter::ViewChange);
 	PEI->BindAction(inputUpDownReleased, ETriggerEvent::Triggered, this, &ALSCharacter::UpDownReleased);
 	PEI->BindAction(inputLeftRightReleased, ETriggerEvent::Triggered, this, &ALSCharacter::LeftRightReleased);
+	PEI->BindAction(inputJump, ETriggerEvent::Triggered, this, &ALSCharacter::Jump);
 }
 
 
