@@ -2,6 +2,7 @@
 
 
 #include "LSCharacter.h"
+#include "LSAnimInstance.h"
 
 // Sets default values
 ALSCharacter::ALSCharacter()
@@ -88,11 +89,22 @@ ALSCharacter::ALSCharacter()
 		inputJump = IA_Jump.Object;
 	}
 
+	static ConstructorHelpers::FObjectFinder<UInputAction> IA_Attack(TEXT("/Script/EnhancedInput.InputAction'/Game/Inputs/IA_Attack.IA_Attack'"));
+	if (IA_Attack.Succeeded())
+	{
+		inputAttack = IA_Attack.Object;
+	}
+
 	SetControlMode(EControlMode::DIABLO);
 
 	ArmLengthSpeed = 3.f;
 	ArmRotationSpeed = 10.f;
 	GetCharacterMovement()->JumpZVelocity = 800.f;
+
+	IsAttacking = false;
+
+	MaxCombo = 4;
+	AttackEndComboState();
 }
 
 // Called when the game starts or when spawned
@@ -160,6 +172,28 @@ void ALSCharacter::Tick(float DeltaTime)
 	}
 }
 
+void ALSCharacter::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	LSAnim = Cast <ULSAnimInstance>(GetMesh()->GetAnimInstance());
+	LSCHECK(LSAnim != nullptr);
+
+	LSAnim->OnMontageEnded.AddDynamic(this, &ALSCharacter::OnAttackMontageEnded);
+
+	LSAnim->OnNextAttackCheck.AddLambda(
+		[this]()->void {
+			LSLOG(Warning, TEXT("OnNextAttackCheck"));
+			CanNextCombo = false;
+
+			if (IsComboInputOn)
+			{
+				AttackStartComboState();
+				LSAnim->JumpToAttackMontageSection(CurrentCombo);
+			}
+		}
+	);
+}
+
 // Called to bind functionality to input
 void ALSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -180,6 +214,7 @@ void ALSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	PEI->BindAction(inputUpDownReleased, ETriggerEvent::Triggered, this, &ALSCharacter::UpDownReleased);
 	PEI->BindAction(inputLeftRightReleased, ETriggerEvent::Triggered, this, &ALSCharacter::LeftRightReleased);
 	PEI->BindAction(inputJump, ETriggerEvent::Triggered, this, &ALSCharacter::Jump);
+	PEI->BindAction(inputAttack, ETriggerEvent::Triggered, this, &ALSCharacter::Attack);
 }
 
 
@@ -238,6 +273,26 @@ void ALSCharacter::Turn(const FInputActionValue& NewAxisValue)
 	}
 }
 
+void ALSCharacter::Attack()
+{
+	if (IsAttacking)
+	{
+		LSCHECK(FMath::IsWithinInclusive<int32>(CurrentCombo, 1, MaxCombo));
+		if (CanNextCombo)
+		{
+			IsComboInputOn = true;
+		}
+	}
+	else
+	{
+		LSCHECK(CurrentCombo == 0);
+		AttackStartComboState();
+		LSAnim->PlayAttackMontage();
+		LSAnim->JumpToAttackMontageSection(CurrentCombo);
+		IsAttacking = true;
+	}
+}
+
 void ALSCharacter::ViewChange()
 {
 	switch (CurrentControlMode)
@@ -253,6 +308,30 @@ void ALSCharacter::ViewChange()
 	default:
 		break;
 	}
+}
+
+void ALSCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	LSCHECK(IsAttacking);
+	LSCHECK(CurrentCombo > 0);
+
+	IsAttacking = false;
+	AttackEndComboState();
+}
+
+void ALSCharacter::AttackStartComboState()
+{
+	CanNextCombo = true;
+	IsComboInputOn = false;
+	LSCHECK(FMath::IsWithinInclusive<int32>(CurrentCombo, 0, MaxCombo - 1));
+	CurrentCombo = FMath::Clamp<int32>(CurrentCombo + 1, 1, MaxCombo);
+}
+
+void ALSCharacter::AttackEndComboState()
+{
+	IsComboInputOn = false;
+	CanNextCombo = false;
+	CurrentCombo = 0;
 }
 
 void ALSCharacter::UpDownReleased()
@@ -278,3 +357,4 @@ void ALSCharacter::LeftRightReleased()
 		break;
 	}
 }
+

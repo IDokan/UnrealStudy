@@ -42,6 +42,8 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	virtual void PostInitializeComponents() override;
+
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
@@ -78,6 +80,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Input)
 	UInputAction* inputJump;
 
+	UPROPERTY(EditAnywhere, Category = Input)
+	UInputAction* inputAttack;
+
 private:
 	void UpDown(const FInputActionValue& NewAxisValue);
 	void LeftRight(const FInputActionValue& NewAxisValue);
@@ -87,5 +92,32 @@ private:
 	void LookUp(const FInputActionValue& NewAxisValue);
 	void Turn(const FInputActionValue& NewAxisValue);
 
+	void Attack();
+
 	void ViewChange();
+
+
+	UFUNCTION()
+	void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+	void AttackStartComboState();
+	void AttackEndComboState();
+
+private:
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
+	bool IsAttacking;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
+	bool CanNextCombo;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
+	bool IsComboInputOn;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
+	int32 CurrentCombo;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
+	int32 MaxCombo;
+
+	UPROPERTY()
+	class ULSAnimInstance* LSAnim;
 };
