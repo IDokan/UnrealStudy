@@ -3,6 +3,7 @@
 
 #include "LSCharacter.h"
 #include "LSAnimInstance.h"
+#include "DrawDebugHelpers.h"
 
 // Sets default values
 ALSCharacter::ALSCharacter()
@@ -105,6 +106,11 @@ ALSCharacter::ALSCharacter()
 
 	MaxCombo = 4;
 	AttackEndComboState();
+
+	GetCapsuleComponent()->SetCollisionProfileName(TEXT("LSCharacter"));
+
+	AttackRange = 200.f;
+	AttackRadius = 50.f;
 }
 
 // Called when the game starts or when spawned
@@ -192,6 +198,9 @@ void ALSCharacter::PostInitializeComponents()
 			}
 		}
 	);
+
+	// @@ TODO: IS this a line to add pointer this to an actor list ignoring collision check?
+	LSAnim->OnAttackHitCheck.AddUObject(this, &ALSCharacter::AttackCheck);
 }
 
 // Called to bind functionality to input
@@ -215,6 +224,20 @@ void ALSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	PEI->BindAction(inputLeftRightReleased, ETriggerEvent::Triggered, this, &ALSCharacter::LeftRightReleased);
 	PEI->BindAction(inputJump, ETriggerEvent::Triggered, this, &ALSCharacter::Jump);
 	PEI->BindAction(inputAttack, ETriggerEvent::Triggered, this, &ALSCharacter::Attack);
+}
+
+float ALSCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	float FinalDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	LSLOG(Warning, TEXT("Actor : %s took Damage : %f"), *GetName(), FinalDamage);
+
+	if (FinalDamage > 0.f)
+	{
+		LSAnim->SetDeadAnim();
+		SetActorEnableCollision(false);
+	}
+
+	return FinalDamage;
 }
 
 
@@ -332,6 +355,55 @@ void ALSCharacter::AttackEndComboState()
 	IsComboInputOn = false;
 	CanNextCombo = false;
 	CurrentCombo = 0;
+}
+
+void ALSCharacter::AttackCheck()
+{
+	FHitResult HitResult;
+
+	FCollisionQueryParams Params(NAME_None, false, this);
+	bool bResult = GetWorld()->SweepSingleByChannel(
+		HitResult,
+		GetActorLocation(),
+		GetActorLocation() + GetActorForwardVector() * AttackRange,
+		FQuat::Identity,
+		ECollisionChannel::ECC_GameTraceChannel2,
+		FCollisionShape::MakeSphere(AttackRadius),
+		Params
+	);
+
+#if ENABLE_DRAW_DEBUG
+	FVector TraceVec = GetActorForwardVector() * AttackRange;
+	FVector Center = GetActorLocation() + TraceVec * 0.5f;
+	// From End of sphere to center of cylinder
+	float HalfHeight = AttackRange * 0.5f + AttackRadius;
+	FQuat CapsuleRot = FRotationMatrix::MakeFromZ(TraceVec).ToQuat();
+	FColor DrawColor = bResult ? FColor::Green : FColor::Red;
+	float DebugLifeTime = 2.5f;
+
+	DrawDebugCapsule(
+		GetWorld(),
+		Center,
+		HalfHeight,
+		AttackRadius,
+		CapsuleRot,
+		DrawColor,
+		false,
+		DebugLifeTime
+	);
+#endif
+
+	if (bResult)
+	{
+		if (AActor* HitActor = HitResult.GetActor();
+			HitActor != nullptr)
+		{
+			LSLOG(Warning, TEXT("Hit Actor Name : %s"), *HitActor->GetName());
+
+			FDamageEvent DamageEvent;
+			HitActor->TakeDamage(50.f, DamageEvent, GetController(), this);
+		}
+	}
 }
 
 void ALSCharacter::UpDownReleased()

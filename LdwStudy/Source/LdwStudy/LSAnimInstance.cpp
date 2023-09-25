@@ -7,6 +7,7 @@ ULSAnimInstance::ULSAnimInstance()
 {
 	CurrentPawnSpeed = 0.f;
 	IsInAir = false;
+	IsDead = false;
 
 
 	static ConstructorHelpers::FObjectFinder<UAnimMontage> WARRIOR_ANIM_MONTAGE(TEXT("/Script/Engine.AnimMontage'/Game/Book/Animations/SK_Mannequin_Skeleton_Montage.SK_Mannequin_Skeleton_Montage'"));
@@ -22,8 +23,12 @@ void ULSAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	Super::NativeUpdateAnimation(DeltaSeconds);
 
 	auto Pawn = TryGetPawnOwner();
+	if (!::IsValid(Pawn))
+	{
+		return;
+	}
 
-	if (::IsValid(Pawn))
+	if (!IsDead)
 	{
 		// Update Pawn Speed
 		CurrentPawnSpeed = Pawn->GetVelocity().Size();
@@ -41,11 +46,13 @@ void ULSAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
 void ULSAnimInstance::PlayAttackMontage()
 {
+	LSCHECK(!IsDead);
 	Montage_Play(AttackMontage, 1.0f);
 }
 
 void ULSAnimInstance::JumpToAttackMontageSection(int32 NewSection)
 {
+	LSCHECK(!IsDead);
 	LSCHECK(Montage_IsPlaying(AttackMontage));
 	Montage_JumpToSection(GetAttackMontageSectionName(NewSection), AttackMontage);
 }
