@@ -3,6 +3,7 @@
 
 #include "LSCharacter.h"
 #include "LSAnimInstance.h"
+#include "LSWeapon.h"
 #include "DrawDebugHelpers.h"
 
 // Sets default values
@@ -42,6 +43,7 @@ ALSCharacter::ALSCharacter()
 		InputMapping = IM_InputMapping.Object;
 	}
 
+	
 	static ConstructorHelpers::FObjectFinder<UInputAction> IA_UpDown(TEXT("/Script/EnhancedInput.InputAction'/Game/Inputs/IA_UpDown.IA_UpDown'"));
 	if (IA_UpDown.Succeeded())
 	{
@@ -117,7 +119,6 @@ ALSCharacter::ALSCharacter()
 void ALSCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
 void ALSCharacter::SetControlMode(EControlMode NewControlMode)
@@ -224,6 +225,23 @@ void ALSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	PEI->BindAction(inputLeftRightReleased, ETriggerEvent::Triggered, this, &ALSCharacter::LeftRightReleased);
 	PEI->BindAction(inputJump, ETriggerEvent::Triggered, this, &ALSCharacter::Jump);
 	PEI->BindAction(inputAttack, ETriggerEvent::Triggered, this, &ALSCharacter::Attack);
+}
+
+bool ALSCharacter::CanSetWeapon()
+{
+	return (CurrentWeapon == nullptr);
+}
+
+void ALSCharacter::SetWeapon(ALSWeapon* NewWeapon)
+{
+	LSCHECK(NewWeapon != nullptr && CurrentWeapon == nullptr);
+	FName WeaponSocket(TEXT("hand_rSocket"));
+	if (NewWeapon != nullptr)
+	{
+		NewWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponSocket);
+		NewWeapon->SetOwner(this);
+		CurrentWeapon = NewWeapon;
+	}
 }
 
 float ALSCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
