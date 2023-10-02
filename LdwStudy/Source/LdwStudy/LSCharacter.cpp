@@ -4,7 +4,10 @@
 #include "LSCharacter.h"
 #include "LSAnimInstance.h"
 #include "LSWeapon.h"
+#include "LSCharacterStatComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Components/WidgetComponent.h"
+#include "LSCharacterWidget.h"
 
 // Sets default values
 ALSCharacter::ALSCharacter()
@@ -14,9 +17,12 @@ ALSCharacter::ALSCharacter()
 
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SPRINGARM"));
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("CAMERA"));
+	CharacterStat = CreateDefaultSubobject<ULSCharacterStatComponent>(TEXT("CHARACTERSTAT"));
+	HPBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HPBARWIDGET"));
 
 	SpringArm->SetupAttachment(GetCapsuleComponent());
 	Camera->SetupAttachment(SpringArm);
+	HPBarWidget->SetupAttachment(GetMesh());
 
 	GetMesh()->SetRelativeLocationAndRotation(FVector(0.f, 0.f, -88.f), FRotator(0.f, -90.f, 0.f));
 	SpringArm->TargetArmLength = 400.f;
@@ -113,12 +119,27 @@ ALSCharacter::ALSCharacter()
 
 	AttackRange = 200.f;
 	AttackRadius = 50.f;
+
+	HPBarWidget->SetRelativeLocation(FVector(0.f, 0.f, 180.f));
+	HPBarWidget->SetWidgetSpace(EWidgetSpace::Screen);
+	static ConstructorHelpers::FClassFinder<UUserWidget> UI_HUD(TEXT("WidgetBlueprint'/Game/Book/UI/UI_HPBar.UI_HPBar_C'"));
+	if (UI_HUD.Succeeded())
+	{
+		HPBarWidget->SetWidgetClass(UI_HUD.Class);
+		HPBarWidget->SetDrawSize(FVector2D(150.f, 50.f));
+	}
 }
 
 // Called when the game starts or when spawned
 void ALSCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	auto CharacterWidget = Cast<ULSCharacterWidget>(HPBarWidget->GetUserWidgetObject());
+	if (CharacterWidget != nullptr)
+	{
+		CharacterWidget->BindCharacterStat(CharacterStat);
+	}
 }
 
 void ALSCharacter::SetControlMode(EControlMode NewControlMode)
@@ -202,6 +223,14 @@ void ALSCharacter::PostInitializeComponents()
 
 	// @@ TODO: IS this a line to add pointer this to an actor list ignoring collision check?
 	LSAnim->OnAttackHitCheck.AddUObject(this, &ALSCharacter::AttackCheck);
+
+	CharacterStat->OnHPIsZero.AddLambda([this]()->void 
+		{
+			LSLOG(Warning, TEXT("OnHPIsZero"));
+			LSAnim->SetDeadAnim();
+			SetActorEnableCollision(false);
+		}
+	);
 }
 
 // Called to bind functionality to input
@@ -249,11 +278,7 @@ float ALSCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEve
 	float FinalDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 	LSLOG(Warning, TEXT("Actor : %s took Damage : %f"), *GetName(), FinalDamage);
 
-	if (FinalDamage > 0.f)
-	{
-		LSAnim->SetDeadAnim();
-		SetActorEnableCollision(false);
-	}
+	CharacterStat->SetDamage(FinalDamage);
 
 	return FinalDamage;
 }
@@ -419,7 +444,7 @@ void ALSCharacter::AttackCheck()
 			LSLOG(Warning, TEXT("Hit Actor Name : %s"), *HitActor->GetName());
 
 			FDamageEvent DamageEvent;
-			HitActor->TakeDamage(50.f, DamageEvent, GetController(), this);
+			HitActor->TakeDamage(CharacterStat->GetAttack(), DamageEvent, GetController(), this);
 		}
 	}
 }

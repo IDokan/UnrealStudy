@@ -56,11 +56,17 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = Weapon)
 	class ALSWeapon* CurrentWeapon;
 
+	UPROPERTY(VisibleAnywhere, Category = Stat)
+	class ULSCharacterStatComponent* CharacterStat;
+
 	UPROPERTY(VisibleAnywhere, Category = Camera)
 	USpringArmComponent* SpringArm;
 
 	UPROPERTY(VisibleAnywhere, Category = Camera)
 	UCameraComponent* Camera;
+
+	UPROPERTY(VisibleAnywhere, Category = UI)
+	class UWidgetComponent* HPBarWidget;
 
 	UPROPERTY(EditAnywhere, Category = Input)
 	UInputMappingContext* InputMapping;
