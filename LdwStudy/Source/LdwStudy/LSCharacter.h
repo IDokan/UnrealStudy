@@ -10,6 +10,8 @@
 #include "Engine/DamageEvents.h"
 #include "LSCharacter.generated.h"
 
+DECLARE_MULTICAST_DELEGATE(FOnAttackEndDelegate);
+
 UCLASS()
 class LDWSTUDY_API ALSCharacter : public ACharacter
 {
@@ -27,6 +29,7 @@ protected:
 	{
 		GTA,
 		DIABLO,
+		NPC,
 		MAX_MODE,
 	};
 
@@ -52,6 +55,11 @@ public:
 	void SetWeapon(class ALSWeapon* NewWeapon);
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
+	virtual void PossessedBy(AController* NewController) override;
+
+	void Attack();
+	FOnAttackEndDelegate OnAttackEnd;
 
 	UPROPERTY(VisibleAnywhere, Category = Weapon)
 	class ALSWeapon* CurrentWeapon;
@@ -106,8 +114,6 @@ private:
 
 	void LookUp(const FInputActionValue& NewAxisValue);
 	void Turn(const FInputActionValue& NewAxisValue);
-
-	void Attack();
 
 	void ViewChange();
 
