@@ -9,6 +9,8 @@
 #include "Components/WidgetComponent.h"
 #include "LSCharacterWidget.h"
 #include "LSAIController.h"
+#include "LSCharacterSetting.h"
+#include "LSGameInstance.h"
 
 // Sets default values
 ALSCharacter::ALSCharacter()
@@ -143,6 +145,19 @@ void ALSCharacter::BeginPlay()
 	if (CharacterWidget != nullptr)
 	{
 		CharacterWidget->BindCharacterStat(CharacterStat);
+	}
+
+	if (!IsPlayerControlled())
+	{
+		auto DefaultSetting = GetDefault<ULSCharacterSetting>();
+		int32 RandIndex = FMath::RandRange(0, DefaultSetting->CharacterAssets.Num() - 1);
+		CharacterAssetToLoad = DefaultSetting->CharacterAssets[RandIndex];
+
+		auto LSGameInstance = Cast<ULSGameInstance>(GetGameInstance());
+		if (LSGameInstance != nullptr)
+		{
+			AssetStreamingHandle = LSGameInstance->StreamableManager.RequestAsyncLoad(CharacterAssetToLoad, FStreamableDelegate::CreateUObject(this, &ALSCharacter::OnAssetLoadCompleted));
+		}
 	}
 }
 
@@ -474,6 +489,16 @@ void ALSCharacter::AttackCheck()
 			FDamageEvent DamageEvent;
 			HitActor->TakeDamage(CharacterStat->GetAttack(), DamageEvent, GetController(), this);
 		}
+	}
+}
+
+void ALSCharacter::OnAssetLoadCompleted()
+{
+	USkeletalMesh* AssetLoaded = Cast<USkeletalMesh>(AssetStreamingHandle->GetLoadedAsset());
+	AssetStreamingHandle.Reset();
+	if (AssetLoaded != nullptr)
+	{
+		GetMesh()->SetSkeletalMesh(AssetLoaded);
 	}
 }
 
