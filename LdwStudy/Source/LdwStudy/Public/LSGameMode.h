@@ -17,6 +17,11 @@ class LDWSTUDY_API ALSGameMode : public AGameModeBase
 public:
 	ALSGameMode();
 
-
+	virtual void PostInitializeComponents() override;
 	virtual void PostLogin(APlayerController* newPlayer) override;
+	void AddScore(class ALSPlayerController* ScoredPlayer);
+
+private:
+	UPROPERTY()
+	class ALSGameState* LSGameState;
 };

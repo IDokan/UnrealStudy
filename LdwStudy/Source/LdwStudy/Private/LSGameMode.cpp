@@ -3,23 +3,43 @@
 #include "LSGameMode.h"
 #include "LSCharacter.h"
 #include "LSPlayerController.h"
+#include "LSPlayerState.h"
+#include "LSGameState.h"
 
 ALSGameMode::ALSGameMode()
 {
 	DefaultPawnClass = ALSCharacter::StaticClass();
 	PlayerControllerClass = ALSPlayerController::StaticClass();
+	PlayerStateClass = ALSPlayerState::StaticClass();
+	GameStateClass = ALSGameState::StaticClass();
+}
 
-	// @@ Not going to use in further examples.
-	//static ConstructorHelpers::FClassFinder<APawn> BP_PAWN_C(TEXT("/Script/Engine.Blueprint'/Game/ThirdPerson/Blueprints/BP_ThirdPersonCharacter.BP_ThirdPersonCharacter_C'"));
-	//if (BP_PAWN_C.Succeeded())
-	//{
-	//	DefaultPawnClass = BP_PAWN_C.Class;
-	//}
+void ALSGameMode::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	LSGameState = Cast<ALSGameState>(GameState);
 }
 
 void ALSGameMode::PostLogin(APlayerController* NewPlayer)
 {
-	LSLOG(Warning, TEXT("PostLogin Begin"));
 	Super::PostLogin(NewPlayer);
-	LSLOG(Warning, TEXT("PostLogin End"));
+
+	auto LSPlayerState = Cast<ALSPlayerState>(NewPlayer->PlayerState);
+	LSCHECK(LSPlayerState != nullptr);
+	LSPlayerState->InitPlayerData();
+}
+
+void ALSGameMode::AddScore(class ALSPlayerController* ScoredPlayer)
+{
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		const auto LSPlayerController = Cast<ALSPlayerController>(It->Get());
+		if ((LSPlayerController != nullptr) && (ScoredPlayer == LSPlayerController))
+		{
+			LSPlayerController->AddGameScore();
+			break;
+		}
+	}
+
+	LSGameState->AddGameScore();
 }

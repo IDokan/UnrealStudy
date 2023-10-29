@@ -28,11 +28,14 @@ ALSAIController::ALSAIController()
 void ALSAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
-	
+}
+
+void ALSAIController::RunAI()
+{
 	auto BlackboardPointerAgent = Blackboard.Get();
 	if (UseBlackboard(BBAsset, BlackboardPointerAgent))
 	{
-		Blackboard->SetValueAsVector(HomePosKey, InPawn->GetActorLocation());
+		Blackboard->SetValueAsVector(HomePosKey, GetPawn()->GetActorLocation());
 		if (!RunBehaviorTree(BTAsset))
 		{
 			LSLOG(Error, TEXT("AIController couldn't run behavior tree!"));
@@ -40,4 +43,13 @@ void ALSAIController::OnPossess(APawn* InPawn)
 	}
 	// Update any changes on the pointer after executing UseBlackboard function.
 	this->Blackboard = BlackboardPointerAgent;
+}
+
+void ALSAIController::StopAI()
+{
+	auto BehaviorTreeComponent = Cast<UBehaviorTreeComponent>(BrainComponent);
+	if (BehaviorTreeComponent != nullptr)
+	{
+		BehaviorTreeComponent->StopTree(EBTStopMode::Safe);
+	}
 }

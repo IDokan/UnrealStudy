@@ -21,6 +21,11 @@ public:
 	// Sets default values for this character's properties
 	ALSCharacter();
 
+	void SetCharacterState(ECharacterState NewState);
+	ECharacterState GetCharacterState() const;
+
+	int32 GetExp() const;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -55,8 +60,6 @@ public:
 	void SetWeapon(class ALSWeapon* NewWeapon);
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
-
-	virtual void PossessedBy(AController* NewController) override;
 
 	void Attack();
 	FOnAttackEndDelegate OnAttackEnd;
@@ -152,6 +155,25 @@ private:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Attack, Meta = (AllowPrivateAccess = true))
 	float AttackRadius;
 
+	int32 AssetIndex = 0;
+
 	FSoftObjectPath CharacterAssetToLoad = FSoftObjectPath(nullptr);
 	TSharedPtr<struct FStreamableHandle> AssetStreamingHandle;
+
+	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = State, Meta = (AllowPrivateAccess = true))
+	ECharacterState CurrentState;
+
+	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = State, Meta = (AllowPrivateAccess = true))
+	bool bIsPlayer;
+
+	UPROPERTY()
+	class ALSAIController* LSAIController;
+
+	UPROPERTY()
+	class ALSPlayerController* LSPlayerController;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = State, Meta = (AllowPrivateAccess = true))
+	float DeadTimer;
+
+	FTimerHandle DeadTimerHandle = {};
 };

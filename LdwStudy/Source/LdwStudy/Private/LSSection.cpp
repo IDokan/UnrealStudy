@@ -4,6 +4,8 @@
 #include "LSSection.h"
 #include "LSCharacter.h"
 #include "LSItemBox.h"
+#include "LSPlayerController.h"
+#include "LSGameMode.h"
 
 // Sets default values
 ALSSection::ALSSection()
@@ -187,4 +189,24 @@ void ALSSection::OnGateTriggerBeginOverlap(UPrimitiveComponent* OverlappedCompon
 void ALSSection::OnNPCSpawn()
 {
 	GetWorld()->SpawnActor<ALSCharacter>(GetActorLocation() + FVector::UpVector * 88.f, FRotator::ZeroRotator);
+	auto KeyNPC = GetWorld()->SpawnActor<ALSCharacter>(GetActorLocation() + FVector::UpVector * 88.f, FRotator::ZeroRotator);
+	if (KeyNPC != nullptr)
+	{
+		KeyNPC->OnDestroyed.AddDynamic(this, &ALSSection::OnKeyNPCDestroyed);
+	}
+}
+
+void ALSSection::OnKeyNPCDestroyed(AActor* DestroyedActor)
+{
+	auto LSCharacter = Cast<ALSCharacter>(DestroyedActor);
+	LSCHECK(LSCharacter != nullptr);
+
+	auto LSPlayerController = Cast<ALSPlayerController>(LSCharacter->LastHitBy);
+	LSCHECK(LSPlayerController != nullptr);
+
+	auto LSGameMode = Cast<ALSGameMode>(GetWorld()->GetAuthGameMode());
+	LSCHECK(LSGameMode != nullptr);
+	LSGameMode->AddScore(LSPlayerController);
+
+	SetState(ESectionState::COMPLETE);
 }

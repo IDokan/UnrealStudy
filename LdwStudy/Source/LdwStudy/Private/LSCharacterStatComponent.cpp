@@ -82,3 +82,8 @@ float ULSCharacterStatComponent::GetHPRatio()
 
 	return (CurrentStatData->MaxHP < KINDA_SMALL_NUMBER) ? 0.f : (CurrentHP / CurrentStatData->MaxHP);
 }
+
+int32 ULSCharacterStatComponent::GetDropExp()
+{
+	return CurrentStatData->DropExp;
+}

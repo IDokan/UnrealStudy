@@ -4,6 +4,15 @@
 
 #include "EngineMinimal.h"
 
+UENUM(BlueprintType)
+enum class ECharacterState : uint8
+{
+	PREINIT,
+	LOADING,
+	READY,
+	DEAD,
+};
+
 DECLARE_LOG_CATEGORY_EXTERN(LdwStudy, Log, All);
 #define LSLOG_CALLINFO (FString(__FUNCTION__) + TEXT("(") + FString::FromInt(__LINE__) + TEXT(")"))
 #define LSLOG_S(Verbosity) UE_LOG(LdwStudy, Verbosity, TEXT("%s"), *LSLOG_CALLINFO)

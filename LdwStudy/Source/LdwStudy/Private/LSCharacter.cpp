@@ -11,6 +11,9 @@
 #include "LSAIController.h"
 #include "LSCharacterSetting.h"
 #include "LSGameInstance.h"
+#include "LSPlayerController.h"
+#include "LSPlayerState.h"
+#include "LSHUDWidget.h"
 
 // Sets default values
 ALSCharacter::ALSCharacter()
@@ -52,7 +55,7 @@ ALSCharacter::ALSCharacter()
 		InputMapping = IM_InputMapping.Object;
 	}
 
-	
+
 	static ConstructorHelpers::FObjectFinder<UInputAction> IA_UpDown(TEXT("/Script/EnhancedInput.InputAction'/Game/Inputs/IA_UpDown.IA_UpDown'"));
 	if (IA_UpDown.Succeeded())
 	{
@@ -134,6 +137,105 @@ ALSCharacter::ALSCharacter()
 
 	AIControllerClass = ALSAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+
+	AssetIndex = 3;
+
+	SetActorHiddenInGame(true);
+	HPBarWidget->SetHiddenInGame(true);
+	SetCanBeDamaged(false);
+
+	DeadTimer = 5.0f;
+}
+
+void ALSCharacter::SetCharacterState(ECharacterState NewState)
+{
+	LSCHECK(CurrentState != NewState);
+	CurrentState = NewState;
+
+	auto CharacterWidget = Cast<ULSCharacterWidget>(HPBarWidget->GetUserWidgetObject());
+	switch (CurrentState)
+	{
+	case	ECharacterState::LOADING:
+		if (bIsPlayer)
+		{
+			DisableInput(LSPlayerController);
+
+			LSPlayerController->GetHUDWidget()->BindCharacterStat(CharacterStat);
+
+			auto LSPlayerState = Cast<ALSPlayerState>(GetPlayerState());
+			LSCHECK(LSPlayerState != nullptr);
+			CharacterStat->SetNewLevel(LSPlayerState->GetCharacterLevel());
+		}
+
+		SetActorHiddenInGame(true);
+		HPBarWidget->SetHiddenInGame(true);
+		SetCanBeDamaged(false);
+		break;
+
+	case ECharacterState::READY:
+		SetActorHiddenInGame(false);
+		HPBarWidget->SetHiddenInGame(false);
+		SetCanBeDamaged(true);
+
+		CharacterStat->OnHPIsZero.AddLambda([this]()->void {
+			SetCharacterState(ECharacterState::DEAD);
+			});
+
+		LSCHECK(CharacterWidget != nullptr);
+		CharacterWidget->BindCharacterStat(CharacterStat);
+
+		if (bIsPlayer)
+		{
+			SetControlMode(EControlMode::DIABLO);
+			GetCharacterMovement()->MaxWalkSpeed = 600.f;
+			EnableInput(LSPlayerController);
+		}
+		else
+		{
+			SetControlMode(EControlMode::NPC);
+			GetCharacterMovement()->MaxWalkSpeed = 300.f;
+			LSAIController->RunAI();
+		}
+		break;
+
+	case ECharacterState::DEAD:
+		SetActorEnableCollision(false);
+		GetMesh()->SetHiddenInGame(false);
+		HPBarWidget->SetHiddenInGame(true);
+		LSAnim->SetDeadAnim();
+		SetCanBeDamaged(false);
+
+		if (bIsPlayer)
+		{
+			DisableInput(LSPlayerController);
+		}
+		else
+		{
+			LSAIController->StopAI();
+		}
+
+		GetWorld()->GetTimerManager().SetTimer(DeadTimerHandle, FTimerDelegate::CreateLambda([this]()->void {
+			if (bIsPlayer)
+			{
+				LSPlayerController->RestartLevel();
+			}
+			else
+			{
+				Destroy();
+			}
+			}), DeadTimer, false);
+		break;
+	}
+}
+
+ECharacterState ALSCharacter::GetCharacterState() const
+{
+	return CurrentState;
+}
+
+int32 ALSCharacter::GetExp() const
+{
+	return CharacterStat->GetDropExp();
 }
 
 // Called when the game starts or when spawned
@@ -141,24 +243,34 @@ void ALSCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	auto CharacterWidget = Cast<ULSCharacterWidget>(HPBarWidget->GetUserWidgetObject());
-	if (CharacterWidget != nullptr)
+	bIsPlayer = IsPlayerControlled();
+	if (bIsPlayer)
 	{
-		CharacterWidget->BindCharacterStat(CharacterStat);
+		LSPlayerController = Cast<ALSPlayerController>(GetController());
+		LSCHECK(LSPlayerController != nullptr);
+	}
+	else
+	{
+		LSAIController = Cast<ALSAIController>(GetController());
+		LSCHECK(LSAIController != nullptr);
 	}
 
-	if (!IsPlayerControlled())
+	auto DefaultSetting = GetDefault<ULSCharacterSetting>();
+	if (bIsPlayer)
 	{
-		auto DefaultSetting = GetDefault<ULSCharacterSetting>();
-		int32 RandIndex = FMath::RandRange(0, DefaultSetting->CharacterAssets.Num() - 1);
-		CharacterAssetToLoad = DefaultSetting->CharacterAssets[RandIndex];
-
-		auto LSGameInstance = Cast<ULSGameInstance>(GetGameInstance());
-		if (LSGameInstance != nullptr)
-		{
-			AssetStreamingHandle = LSGameInstance->StreamableManager.RequestAsyncLoad(CharacterAssetToLoad, FStreamableDelegate::CreateUObject(this, &ALSCharacter::OnAssetLoadCompleted));
-		}
+		AssetIndex = 4;
 	}
+	else
+	{
+		AssetIndex = FMath::RandRange(0, DefaultSetting->CharacterAssets.Num() - 1);
+	}
+
+	CharacterAssetToLoad = DefaultSetting->CharacterAssets[AssetIndex];
+
+	auto LSGameInstance = Cast<ULSGameInstance>(GetGameInstance());
+	LSCHECK(LSGameInstance != nullptr);
+	AssetStreamingHandle = LSGameInstance->StreamableManager.RequestAsyncLoad(CharacterAssetToLoad, FStreamableDelegate::CreateUObject(this, &ALSCharacter::OnAssetLoadCompleted));
+	SetCharacterState(ECharacterState::LOADING);
 }
 
 void ALSCharacter::SetControlMode(EControlMode NewControlMode)
@@ -249,7 +361,7 @@ void ALSCharacter::PostInitializeComponents()
 	// @@ TODO: IS this a line to add pointer this to an actor list ignoring collision check?
 	LSAnim->OnAttackHitCheck.AddUObject(this, &ALSCharacter::AttackCheck);
 
-	CharacterStat->OnHPIsZero.AddLambda([this]()->void 
+	CharacterStat->OnHPIsZero.AddLambda([this]()->void
 		{
 			LSLOG(Warning, TEXT("OnHPIsZero"));
 			LSAnim->SetDeadAnim();
@@ -304,26 +416,18 @@ float ALSCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEve
 	LSLOG(Warning, TEXT("Actor : %s took Damage : %f"), *GetName(), FinalDamage);
 
 	CharacterStat->SetDamage(FinalDamage);
+	if (CurrentState == ECharacterState::DEAD)
+	{
+		if (EventInstigator->IsPlayerController())
+		{
+			auto KilledNPCController = Cast<ALSPlayerController>(EventInstigator);
+			LSCHECK(KilledNPCController != nullptr, 0.f);
+			KilledNPCController->NPCKill(this);
+		}
+	}
 
 	return FinalDamage;
 }
-
-void ALSCharacter::PossessedBy(AController* NewController)
-{
-	Super::PossessedBy(NewController);
-
-	if (IsPlayerControlled())
-	{
-		SetControlMode(EControlMode::DIABLO);
-		GetCharacterMovement()->MaxWalkSpeed = 600.f;
-	}
-	else
-	{
-		SetControlMode(EControlMode::NPC);
-		GetCharacterMovement()->MaxWalkSpeed = 300.f;
-	}
-}
-
 
 
 void ALSCharacter::UpDown(const FInputActionValue& NewAxisValue)
@@ -346,8 +450,8 @@ void ALSCharacter::LeftRight(const FInputActionValue& NewAxisValue)
 	switch (CurrentControlMode)
 	{
 	case EControlMode::GTA:
-	AddMovementInput(FRotationMatrix(GetControlRotation()).GetUnitAxis(EAxis::Y), NewAxisValue.Get<float>());
-	break;
+		AddMovementInput(FRotationMatrix(GetControlRotation()).GetUnitAxis(EAxis::Y), NewAxisValue.Get<float>());
+		break;
 	case EControlMode::DIABLO:
 		DirectionToMove.Y = NewAxisValue.Get<float>();
 		break;
@@ -496,10 +600,11 @@ void ALSCharacter::OnAssetLoadCompleted()
 {
 	USkeletalMesh* AssetLoaded = Cast<USkeletalMesh>(AssetStreamingHandle->GetLoadedAsset());
 	AssetStreamingHandle.Reset();
-	if (AssetLoaded != nullptr)
-	{
-		GetMesh()->SetSkeletalMesh(AssetLoaded);
-	}
+	LSCHECK(AssetLoaded != nullptr);
+
+	GetMesh()->SetSkeletalMesh(AssetLoaded);
+
+	SetCharacterState(ECharacterState::READY);
 }
 
 void ALSCharacter::UpDownReleased()
