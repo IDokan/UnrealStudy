@@ -123,7 +123,7 @@ ALSCharacter::ALSCharacter()
 
 	GetCapsuleComponent()->SetCollisionProfileName(TEXT("LSCharacter"));
 
-	AttackRange = 200.f;
+	AttackRange = 80.f;
 	AttackRadius = 50.f;
 
 	HPBarWidget->SetRelativeLocation(FVector(0.f, 0.f, 180.f));
@@ -236,6 +236,19 @@ ECharacterState ALSCharacter::GetCharacterState() const
 int32 ALSCharacter::GetExp() const
 {
 	return CharacterStat->GetDropExp();
+}
+
+float ALSCharacter::GetFinalAttackRange() const
+{
+	return (CurrentWeapon != nullptr) ? CurrentWeapon->GetAttackRange() : AttackRange;
+}
+
+float ALSCharacter::GetFinalAttackDamage() const
+{
+	float AttackDamage = (CurrentWeapon != nullptr) ? (CharacterStat->GetAttack() + CurrentWeapon->GetAttackDamage()) : CharacterStat->GetAttack();
+	float AttackModifier = (CurrentWeapon != nullptr) ? CurrentWeapon->GetAttackModifier() : 1.f;
+
+	return AttackDamage * AttackModifier;
 }
 
 // Called when the game starts or when spawned
@@ -395,12 +408,20 @@ void ALSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 
 bool ALSCharacter::CanSetWeapon()
 {
-	return (CurrentWeapon == nullptr);
+	return true;
 }
 
 void ALSCharacter::SetWeapon(ALSWeapon* NewWeapon)
 {
-	LSCHECK(NewWeapon != nullptr && CurrentWeapon == nullptr);
+	LSCHECK(NewWeapon != nullptr);
+
+	if (CurrentWeapon != nullptr)
+	{
+		CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		CurrentWeapon->Destroy();
+		CurrentWeapon = nullptr;
+	}
+
 	FName WeaponSocket(TEXT("hand_rSocket"));
 	if (NewWeapon != nullptr)
 	{
@@ -549,13 +570,15 @@ void ALSCharacter::AttackEndComboState()
 
 void ALSCharacter::AttackCheck()
 {
+	float FinalAttackRange = GetFinalAttackRange();
+
 	FHitResult HitResult;
 
 	FCollisionQueryParams Params(NAME_None, false, this);
 	bool bResult = GetWorld()->SweepSingleByChannel(
 		HitResult,
 		GetActorLocation(),
-		GetActorLocation() + GetActorForwardVector() * AttackRange,
+		GetActorLocation() + GetActorForwardVector() * FinalAttackRange,
 		FQuat::Identity,
 		ECollisionChannel::ECC_GameTraceChannel2,
 		FCollisionShape::MakeSphere(AttackRadius),
@@ -563,10 +586,10 @@ void ALSCharacter::AttackCheck()
 	);
 
 #if ENABLE_DRAW_DEBUG
-	FVector TraceVec = GetActorForwardVector() * AttackRange;
+	FVector TraceVec = GetActorForwardVector() * FinalAttackRange;
 	FVector Center = GetActorLocation() + TraceVec * 0.5f;
 	// From End of sphere to center of cylinder
-	float HalfHeight = AttackRange * 0.5f + AttackRadius;
+	float HalfHeight = FinalAttackRange * 0.5f + AttackRadius;
 	FQuat CapsuleRot = FRotationMatrix::MakeFromZ(TraceVec).ToQuat();
 	FColor DrawColor = bResult ? FColor::Green : FColor::Red;
 	float DebugLifeTime = 2.5f;
@@ -591,7 +614,7 @@ void ALSCharacter::AttackCheck()
 			LSLOG(Warning, TEXT("Hit Actor Name : %s"), *HitActor->GetName());
 
 			FDamageEvent DamageEvent;
-			HitActor->TakeDamage(CharacterStat->GetAttack(), DamageEvent, GetController(), this);
+			HitActor->TakeDamage(GetFinalAttackDamage(), DamageEvent, GetController(), this);
 		}
 	}
 }

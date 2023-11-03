@@ -19,6 +19,27 @@ ALSWeapon::ALSWeapon()
 	}
 
 	Weapon->SetCollisionProfileName(TEXT("NoCollision"));
+
+	AttackRange = 150.f;
+	AttackDamageMin = -2.f;
+	AttackDamageMax = 10.f;
+	AttackModifierMin = 0.85f;
+	AttackModifierMax = 1.25f;
+}
+
+float ALSWeapon::GetAttackRange() const
+{
+	return AttackRange;
+}
+
+float ALSWeapon::GetAttackDamage() const
+{
+	return AttackDamage;
+}
+
+float ALSWeapon::GetAttackModifier() const
+{
+	return AttackModifier;
 }
 
 // Called when the game starts or when spawned
@@ -26,6 +47,9 @@ void ALSWeapon::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	AttackDamage = FMath::RandRange(AttackDamageMin, AttackDamageMax);
+	AttackModifier = FMath::RandRange(AttackModifierMin, AttackModifierMax);
+	LSLOG(Warning, TEXT("Weapon Damage : %f, Modifier : %f"), AttackDamage, AttackModifier);
 }
 
 // Called every frame

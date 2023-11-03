@@ -16,7 +16,7 @@ bool UBTDecorator_IsInAttackRange::CalculateRawConditionValue(UBehaviorTreeCompo
 {
 	bool bResult = Super::CalculateRawConditionValue(OwnerComp, NodeMemory);
 
-	auto ControllingPawn = OwnerComp.GetAIOwner()->GetPawn();
+	auto ControllingPawn = Cast<ALSCharacter>(OwnerComp.GetAIOwner()->GetPawn());
 	if (ControllingPawn == nullptr)
 	{
 		return false;
@@ -28,7 +28,7 @@ bool UBTDecorator_IsInAttackRange::CalculateRawConditionValue(UBehaviorTreeCompo
 		return false;
 	}
 
-	bResult = (Target->GetDistanceTo(ControllingPawn) <= 200.f);
+	bResult = (Target->GetDistanceTo(ControllingPawn) <= ControllingPawn->GetFinalAttackRange());
 
 	return bResult;
 }

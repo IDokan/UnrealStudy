@@ -3,12 +3,15 @@
 
 #include "LSPlayerState.h"
 #include "LSGameInstance.h"
+#include "LSSaveGame.h"
 
 ALSPlayerState::ALSPlayerState()
 {
 	CharacterLevel = 1;
 	GameScore = 0;
+	GameHighScore = 0;
 	Exp = 0;
+	SaveSlotName = TEXT("Player1");
 }
 
 int32 ALSPlayerState::GetGameScore() const
@@ -55,16 +58,41 @@ bool ALSPlayerState::AddExp(int32 IncomeExp)
 	}
 
 	OnPlayerStateChanged.Broadcast();
+	SavePlayerData();
 
 	return DidLevelUp;
 }
 
 void ALSPlayerState::InitPlayerData()
 {
-	SetPlayerName(TEXT("Destiny"));
-	SetCharacterLevel(5);
+	auto LSSaveGame = Cast<ULSSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0));
+	if (LSSaveGame == nullptr)
+	{
+		LSSaveGame = GetMutableDefault<ULSSaveGame>();
+	}
+
+	SetPlayerName(LSSaveGame->PlayerName);
+	SetCharacterLevel(LSSaveGame->Level);
 	GameScore = 0;
-	Exp = 0;
+	GameHighScore = LSSaveGame->HighScore;
+	Exp = LSSaveGame->Exp;
+	SavePlayerData();
+}
+
+void ALSPlayerState::SavePlayerData()
+{
+	ULSSaveGame* NewPlayerData = NewObject <ULSSaveGame>();
+	NewPlayerData->PlayerName = GetPlayerName();
+	NewPlayerData->Level = CharacterLevel;
+	NewPlayerData->Exp = Exp;
+	NewPlayerData->HighScore = GameHighScore;
+
+	if (!UGameplayStatics::SaveGameToSlot(NewPlayerData, SaveSlotName, 0))
+	{
+		LSLOG(Error, TEXT("SaveGame Error!"));
+	}
+
+	// Leave allocated new memory to be handled by GarbageCollectors
 }
 
 void ALSPlayerState::SetCharacterLevel(int32 NewCharacterLevel)
@@ -82,5 +110,16 @@ void ALSPlayerState::SetCharacterLevel(int32 NewCharacterLevel)
 void ALSPlayerState::AddGameScore()
 {
 	++GameScore;
+	if (GameScore >= GameHighScore)
+	{
+		GameHighScore = GameScore;
+	}
 	OnPlayerStateChanged.Broadcast();
+	SavePlayerData();
+}
+
+int32 ALSPlayerState::GetGameHighScore() const
+{
+
+	return GameHighScore;
 }
