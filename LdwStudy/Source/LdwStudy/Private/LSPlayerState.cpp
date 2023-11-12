@@ -12,6 +12,7 @@ ALSPlayerState::ALSPlayerState()
 	GameHighScore = 0;
 	Exp = 0;
 	SaveSlotName = TEXT("Player1");
+	CharacterIndex = 0;
 }
 
 int32 ALSPlayerState::GetGameScore() const
@@ -22,6 +23,11 @@ int32 ALSPlayerState::GetGameScore() const
 int32 ALSPlayerState::GetCharacterLevel() const
 {
 	return CharacterLevel;
+}
+
+int32 ALSPlayerState::GetCharacterIndex() const
+{
+	return CharacterIndex;
 }
 
 float ALSPlayerState::GetExpRatio() const
@@ -76,6 +82,7 @@ void ALSPlayerState::InitPlayerData()
 	GameScore = 0;
 	GameHighScore = LSSaveGame->HighScore;
 	Exp = LSSaveGame->Exp;
+	CharacterIndex = LSSaveGame->CharacterIndex;
 	SavePlayerData();
 }
 
@@ -86,6 +93,7 @@ void ALSPlayerState::SavePlayerData()
 	NewPlayerData->Level = CharacterLevel;
 	NewPlayerData->Exp = Exp;
 	NewPlayerData->HighScore = GameHighScore;
+	NewPlayerData->CharacterIndex = CharacterIndex;
 
 	if (!UGameplayStatics::SaveGameToSlot(NewPlayerData, SaveSlotName, 0))
 	{

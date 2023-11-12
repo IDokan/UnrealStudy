@@ -20,8 +20,12 @@ public:
 	virtual void PostInitializeComponents() override;
 	virtual void PostLogin(APlayerController* newPlayer) override;
 	void AddScore(class ALSPlayerController* ScoredPlayer);
+	int32 GetScore() const; 
 
 private:
 	UPROPERTY()
 	class ALSGameState* LSGameState;
+
+	UPROPERTY()
+	int32 ScoreToClear;
 };

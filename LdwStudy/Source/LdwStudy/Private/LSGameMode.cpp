@@ -12,6 +12,8 @@ ALSGameMode::ALSGameMode()
 	PlayerControllerClass = ALSPlayerController::StaticClass();
 	PlayerStateClass = ALSPlayerState::StaticClass();
 	GameStateClass = ALSGameState::StaticClass();
+
+	ScoreToClear = 2;
 }
 
 void ALSGameMode::PostInitializeComponents()
@@ -42,4 +44,28 @@ void ALSGameMode::AddScore(class ALSPlayerController* ScoredPlayer)
 	}
 
 	LSGameState->AddGameScore();
+
+	if (GetScore() >= ScoreToClear)
+	{
+		LSGameState->SetGameCleared();
+
+		for (FConstPawnIterator It = GetWorld()->GetPawnIterator(); It; ++It)
+		{
+			(*It)->TurnOff();
+		}
+
+		for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+		{
+			const auto LSPlayerController = Cast<ALSPlayerController>(It->Get());
+			if (LSPlayerController != nullptr)
+			{
+				LSPlayerController->ShowResultUI();
+			}
+		}
+	}
+}
+
+int32 ALSGameMode::GetScore() const
+{
+	return LSGameState->GetTotalGameScore();
 }

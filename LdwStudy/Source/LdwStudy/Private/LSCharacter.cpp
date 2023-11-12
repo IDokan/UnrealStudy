@@ -14,6 +14,7 @@
 #include "LSPlayerController.h"
 #include "LSPlayerState.h"
 #include "LSHUDWidget.h"
+#include "LSGameMode.h"
 
 // Sets default values
 ALSCharacter::ALSCharacter()
@@ -166,6 +167,16 @@ void ALSCharacter::SetCharacterState(ECharacterState NewState)
 			LSCHECK(LSPlayerState != nullptr);
 			CharacterStat->SetNewLevel(LSPlayerState->GetCharacterLevel());
 		}
+		else
+		{
+			// Set NPC level in loading phase.
+			auto LSGameMode = Cast<ALSGameMode>(GetWorld()->GetAuthGameMode());
+			LSCHECK(LSGameMode != nullptr);
+			int32 TargetLevel = FMath::CeilToInt((float)LSGameMode->GetScore() * 0.8f);
+			int32 FinalLevel = FMath::Clamp<int32>(TargetLevel, 1, 20);
+			LSLOG(Warning, TEXT("New NPC Level : %d"), FinalLevel);
+			CharacterStat->SetNewLevel(FinalLevel);
+		}
 
 		SetActorHiddenInGame(true);
 		HPBarWidget->SetHiddenInGame(true);
@@ -217,7 +228,7 @@ void ALSCharacter::SetCharacterState(ECharacterState NewState)
 		GetWorld()->GetTimerManager().SetTimer(DeadTimerHandle, FTimerDelegate::CreateLambda([this]()->void {
 			if (bIsPlayer)
 			{
-				LSPlayerController->RestartLevel();
+				LSPlayerController->ShowResultUI();
 			}
 			else
 			{
@@ -271,7 +282,9 @@ void ALSCharacter::BeginPlay()
 	auto DefaultSetting = GetDefault<ULSCharacterSetting>();
 	if (bIsPlayer)
 	{
-		AssetIndex = 4;
+		auto LSPlayerState = GetPlayerState<ALSPlayerState>();
+		LSCHECK(LSPlayerState != nullptr);
+		AssetIndex = LSPlayerState->GetCharacterIndex();
 	}
 	else
 	{
@@ -391,7 +404,6 @@ void ALSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 
 	APlayerController* PC = Cast<APlayerController>(GetController());
 	UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer());
-	Subsystem->ClearAllMappings();
 	Subsystem->AddMappingContext(InputMapping, 0);
 
 	UEnhancedInputComponent* PEI = Cast<UEnhancedInputComponent>(PlayerInputComponent);
